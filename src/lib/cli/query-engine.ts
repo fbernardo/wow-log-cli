@@ -1,0 +1,148 @@
+import type { CombatEvent } from '../parser-events';
+import { parseLog, resolveEncounter, type ParsedLog } from './encounter-index';
+import { toRow, paginate, projectFields, semantics } from './output';
+export { parseLog, resolveEncounter, type ParsedLog } from './encounter-index';
+
+export interface CliOptions {
+  input?: string;
+  format?: 'json' | 'jsonl' | 'csv' | 'table' | 'md';
+  compact?: boolean;
+  out?: string;
+  limit?: number;
+  offset?: number;
+  sort?: string;
+  fields?: string[];
+  encounter?: string;
+  player?: string;
+  target?: string;
+  ability?: string;
+  eventTypes?: string[];
+  timeRange?: string;
+  enemyOnly?: boolean;
+  normalized?: boolean;
+  rawLine?: boolean;
+}
+
+function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
+  const enc = resolveEncounter(parsed, options.encounter);
+  const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
+
+  return parsed.events.filter((e: any) => {
+    const ts = e.timestamp?.getTime?.() ?? 0;
+    if (enc && (ts < enc.startMs || ts > enc.endMs)) return false;
+    if (eventTypeSet && !eventTypeSet.has(e.type)) return false;
+    if (options.player && e.sourceName !== options.player && e.sourceGUID !== options.player) return false;
+    if (options.target && e.destName !== options.target && e.destGUID !== options.target) return false;
+    if (options.ability && e.spellName !== options.ability && String(e.spellId ?? '') !== options.ability) return false;
+    return true;
+  });
+}
+
+function isEnemyTarget(e: any): boolean {
+  return !!e.destGUID && !String(e.destGUID).startsWith('Player-');
+}
+
+function effectiveDamage(e: any): number {
+  if (e.type === 'SPELL_MISSED' || e.type === 'SPELL_PERIODIC_MISSED') {
+    if (e.missType === 'ABSORB') return Math.max(0, e.absorbed || 0);
+    return 0;
+  }
+  const amount = Math.max(0, e.amount || 0);
+  const overkill = Math.max(0, e.overkill || 0);
+  return Math.max(0, amount - overkill);
+}
+
+export function commandFightList(parsed: ParsedLog, options: CliOptions) {
+  let fights = parsed.encounters.map((e) => e.info);
+  if (options.encounter) {
+    const enc = resolveEncounter(parsed, options.encounter);
+    fights = enc ? [enc.info] : [];
+  }
+  return { semantics: semantics(!!options.enemyOnly), fights };
+}
+
+export function commandAbilityEvents(parsed: ParsedLog, options: CliOptions) {
+  if (!options.ability) throw new Error('ability events requires --ability');
+  const rows = applyFilters(parsed, options)
+    .filter((e: any) => {
+      if (!options.enemyOnly) return true;
+      return isEnemyTarget(e);
+    })
+    .map((e: any) => toRow(e, !!options.normalized, effectiveDamage));
+
+  const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const paged = paginate(sorted, options);
+  return {
+    semantics: semantics(!!options.enemyOnly),
+    rows: projectFields(paged as any, options.fields),
+    count: rows.length,
+  };
+}
+
+export function commandEventsSearch(parsed: ParsedLog, options: CliOptions) {
+  const rows = applyFilters(parsed, options)
+    .filter((e: any) => {
+      if (!options.enemyOnly) return true;
+      return isEnemyTarget(e);
+    })
+    .map((e: any) => toRow(e, true, effectiveDamage));
+
+  const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const paged = paginate(sorted, options);
+  return {
+    semantics: semantics(!!options.enemyOnly),
+    rows: projectFields(paged as any, options.fields),
+    count: rows.length,
+  };
+}
+
+export function runCommand(parsed: ParsedLog, command: string[], options: CliOptions) {
+  const [a, b] = command;
+  if (a === 'fight' && b === 'list') return commandFightList(parsed, options);
+  if (a === 'ability' && b === 'events') return commandAbilityEvents(parsed, options);
+  if (a === 'events' && b === 'search') return commandEventsSearch(parsed, options);
+  throw new Error(`Unknown command: ${command.join(' ')}`);
+}
+
+export function parseCliArgs(args: string[]): { command: string[]; options: CliOptions } {
+  const command: string[] = [];
+  const options: CliOptions = { format: 'json', compact: true, limit: 200, offset: 0 };
+
+  let i = 0;
+  while (i < args.length && !args[i].startsWith('-')) {
+    command.push(args[i]);
+    i++;
+    if (command.length === 2) break;
+  }
+
+  while (i < args.length) {
+    const k = args[i++];
+    if (!k.startsWith('--')) continue;
+    const key = k.slice(2);
+    const val = i < args.length && !args[i].startsWith('--') ? args[i++] : 'true';
+
+    switch (key) {
+      case 'input': options.input = val; break;
+      case 'format': options.format = val as any; break;
+      case 'compact': options.compact = true; break;
+      case 'out': options.out = val; break;
+      case 'limit': options.limit = Number(val); break;
+      case 'offset': options.offset = Number(val); break;
+      case 'sort': options.sort = val; break;
+      case 'fields': options.fields = val.split(',').map((s) => s.trim()).filter(Boolean); break;
+      case 'encounter': options.encounter = val; break;
+      case 'player': options.player = val; break;
+      case 'target': options.target = val; break;
+      case 'ability': options.ability = val; break;
+      case 'event-types': options.eventTypes = val.split(',').map((s) => s.trim()).filter(Boolean); break;
+      case 'time-range': options.timeRange = val; break;
+      case 'enemy-only': options.enemyOnly = true; break;
+      case 'normalized': options.normalized = true; break;
+      case 'raw-line': options.rawLine = true; break;
+      default:
+        break;
+    }
+  }
+
+  return { command, options };
+}
