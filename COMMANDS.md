@@ -211,7 +211,7 @@ Each output should include effective semantics used:
 - default `--format json`
 - default `--compact`
 - default `--limit 200`
-- default `--enemy-only` for summary/breakdown commands
+- default `--enemy-only` for damage event queries when user intent is damage-to-enemy
 - require `--encounter` for high-volume commands (`ability events`, `events search`) unless `--force-all`
 
 ---
