@@ -1,8 +1,11 @@
 import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { parseCombatLogEvents, type CombatEvent, type EncounterStartEvent, type EncounterEndEvent, type SpellDamageEvent, type SpellHealEvent, type SpellAuraAppliedEvent } from '../../lib/parser-events';
 import { describe, it, expect } from 'vitest';
 
-const COMBAT_LOG_PATH = '/Users/openclaw/.openclaw/workspace/wow-log-analyzer/WoWCombatLog-021626_223411.txt';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const COMBAT_LOG_PATH = resolve(__dirname, '../fixtures/plexus-slice.log');
 
 interface EncounterSummary {
   bossName: string;
