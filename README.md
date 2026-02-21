@@ -12,9 +12,10 @@ Experimental / MVP. Core commands are stable enough for daily use, but behavior 
 - Node.js 22+
 - npm
 
-### Install deps
+### Install (latest release, one-liner)
 
 ```bash
+curl -fsSL https://github.com/fbernardo/wow-log-cli/releases/latest/download/wow-log-cli.tar.gz | tar -xz
 npm ci
 ```
 
