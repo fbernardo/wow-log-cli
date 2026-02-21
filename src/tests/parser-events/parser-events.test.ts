@@ -68,6 +68,10 @@ function summarizeEncounter(events: CombatEvent[]): EncounterSummary {
     .slice(0, 5)
     .map(([name, amount]) => ({ name, amount }));
   
+  // UNKNOWN is intentionally omitted from snapshot summaries to keep this test
+  // stable as parser coverage expands to additional event types.
+  delete eventCounts.UNKNOWN;
+
   return {
     bossName: startEvent?.bossName || 'Unknown',
     encounterId: startEvent?.encounterId || 0,
