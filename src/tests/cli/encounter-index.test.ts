@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { parseLog, parseEncounterIndex, resolveEncounter } from '../../lib/cli/encounter-index';
 
-const LOG_PATH = '/Users/openclaw/.openclaw/workspace/wow-log-analyzer/src/tests/fixtures/plexus-slice.log';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const LOG_PATH = resolve(__dirname, '../fixtures/plexus-slice.log');
 
 describe('encounter index', () => {
   it('parses encounters from fixture', () => {
