@@ -5,8 +5,6 @@
  * Each event type has its own TypeScript interface.
  */
 
-import { isKill, type BossData } from './data/bosses';
-
 // ============================================================================
 // EVENT TYPE DEFINITIONS
 // ============================================================================
