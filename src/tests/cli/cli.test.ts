@@ -56,4 +56,17 @@ describe('cli commands', () => {
     expect(res.rows.length).toBe(3);
     expect(Object.keys(res.rows[0]).sort()).toEqual(['ability', 'eventType', 'timestamp']);
   });
+
+  it('events search with player includes pet-owned events', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+    const res: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      player: 'Willòwí-Draenor-EU',
+      limit: 3000,
+    });
+
+    expect(res.count).toBeGreaterThan(1314); // direct player events + pet-owned events
+    expect(res.rows.some((r: any) => r.source === 'Glaciersmasher')).toBe(true);
+  });
 });
