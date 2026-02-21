@@ -463,7 +463,7 @@ export type EventCallback = (event: CombatEvent) => void;
 export function parseCombatLogEvents(content: string, callback: EventCallback): void {
   const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
-  const lineRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})\.(\d{4})\s{2,}(.+)$/;
+  const lineRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})\.(\d{3,4})\s{2,}(.+)$/;
   const playerNameByGuid = new Map<string, string>();
 
   for (const line of lines) {
@@ -1031,8 +1031,9 @@ function parseTimestamp(dateStr: string, timeStr: string): Date {
   const minute = Number(parts[1]);
   const secParts = parts[2].split('.');
   const second = Number(secParts[0]);
-  const msRaw = Number(secParts[1]);
-  const ms = Math.round(msRaw * 0.1);
+  const msText = secParts[1] || '0';
+  const msRaw = Number(msText);
+  const ms = msText.length === 4 ? Math.round(msRaw * 0.1) : msRaw;
   
   return new Date(year, month - 1, day, hour, minute, second, ms);
 }
