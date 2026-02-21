@@ -10,17 +10,14 @@ export interface CliOptions {
   out?: string;
   limit?: number;
   offset?: number;
-  sort?: string;
   fields?: string[];
   encounter?: string;
   player?: string;
   target?: string;
   ability?: string;
   eventTypes?: string[];
-  timeRange?: string;
   enemyOnly?: boolean;
   normalized?: boolean;
-  rawLine?: boolean;
 }
 
 function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
@@ -145,17 +142,14 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'out': options.out = val; break;
       case 'limit': options.limit = Number(val); break;
       case 'offset': options.offset = Number(val); break;
-      case 'sort': options.sort = val; break;
       case 'fields': options.fields = val.split(',').map((s) => s.trim()).filter(Boolean); break;
       case 'encounter': options.encounter = val; break;
       case 'player': options.player = val; break;
       case 'target': options.target = val; break;
       case 'ability': options.ability = val; break;
       case 'event-types': options.eventTypes = val.split(',').map((s) => s.trim()).filter(Boolean); break;
-      case 'time-range': options.timeRange = val; break;
       case 'enemy-only': options.enemyOnly = true; break;
       case 'normalized': options.normalized = true; break;
-      case 'raw-line': options.rawLine = true; break;
       default:
         break;
     }

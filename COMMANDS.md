@@ -23,10 +23,8 @@ Global options:
 - `--out <path>` : Write output to file instead of stdout
 - `--limit <n>` : Max rows/items (default depends on subcommand)
 - `--offset <n>` : Pagination offset (default `0`)
-- `--sort <field[:asc|desc]>` : Sort key
 - `--fields <csv>` : Restrict output columns/keys
 - `--enemy-only` : Include only damage to non-player targets
-- `--time-range <start,end>` : Relative (`00:20.000,00:40.000`) or absolute timestamps
 
 Format examples:
 
@@ -99,7 +97,6 @@ logparse ability events --input WoWCombatLog.txt --encounter 3129 --player "Erua
 
 Options:
 - `--normalized` : Include computed columns (`effectiveDamage`, `countsAsHit`, `countsAsCrit`)
-- `--raw-line` : Include original log line text
 
 Output schema:
 
