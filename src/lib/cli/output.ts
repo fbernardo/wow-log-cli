@@ -72,7 +72,7 @@ function findTabularArray(result: any): Record<string, any>[] {
 }
 
 export function formatResult(result: any, format: OutputFormat = 'json', compact = true): string {
-  if (format === 'json' || format === 'table' || format === 'md') {
+  if (format === 'json') {
     return JSON.stringify(result, null, compact ? 0 : 2);
   }
 
@@ -80,6 +80,32 @@ export function formatResult(result: any, format: OutputFormat = 'json', compact
 
   if (format === 'jsonl') {
     return rows.map((r) => JSON.stringify(r)).join('\n');
+  }
+
+  if (format === 'table') {
+    if (rows.length === 0) return '';
+    const cols = Array.from(rows.reduce((set, r) => {
+      Object.keys(r || {}).forEach((k) => set.add(k));
+      return set;
+    }, new Set<string>()));
+    const widths = cols.map((c) => Math.max(c.length, ...rows.map((r) => String(r?.[c] ?? '').length)));
+    const header = cols.map((c, i) => c.padEnd(widths[i])).join(' | ');
+    const sep = widths.map((w) => '-'.repeat(w)).join('-|-');
+    const lines = rows.map((r) => cols.map((c, i) => String(r?.[c] ?? '').padEnd(widths[i])).join(' | '));
+    return [header, sep, ...lines].join('\n');
+  }
+
+  if (format === 'md') {
+    if (rows.length === 0) return '';
+    const cols = Array.from(rows.reduce((set, r) => {
+      Object.keys(r || {}).forEach((k) => set.add(k));
+      return set;
+    }, new Set<string>()));
+    const esc = (v: unknown) => String(v ?? '').replace(/\|/g, '\\|');
+    const header = `| ${cols.join(' | ')} |`;
+    const sep = `| ${cols.map(() => '---').join(' | ')} |`;
+    const lines = rows.map((r) => `| ${cols.map((c) => esc(r?.[c])).join(' | ')} |`);
+    return [header, sep, ...lines].join('\n');
   }
 
   // csv
