@@ -72,4 +72,25 @@ describe('cli commands', () => {
     expect(res.count).toBeGreaterThan(1314); // direct player events + pet-owned events
     expect(res.rows.some((r: any) => r.source === 'Glaciersmasher')).toBe(true);
   });
+
+  it('includes raw line when --raw-line is enabled', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+
+    const withRaw: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      eventTypes: ['SPELL_DAMAGE'],
+      rawLine: true,
+      limit: 1,
+    });
+
+    const withoutRaw: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      eventTypes: ['SPELL_DAMAGE'],
+      limit: 1,
+    });
+
+    expect(withRaw.rows[0].rawLine).toContain('SPELL_DAMAGE');
+    expect(withoutRaw.rows[0].rawLine).toBeUndefined();
+  });
 });

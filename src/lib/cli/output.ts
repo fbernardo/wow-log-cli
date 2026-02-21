@@ -6,7 +6,12 @@ export interface OutputOptions {
 
 export type OutputFormat = 'json' | 'jsonl' | 'csv' | 'table' | 'md';
 
-export function toRow(e: any, normalized = false, effectiveDamageFn?: (e: any) => number) {
+export function toRow(
+  e: any,
+  normalized = false,
+  effectiveDamageFn?: (e: any) => number,
+  includeRawLine = false,
+) {
   const row: Record<string, any> = {
     timestamp: e.timestamp?.toISOString?.() ?? '',
     eventType: e.type,
@@ -26,6 +31,10 @@ export function toRow(e: any, normalized = false, effectiveDamageFn?: (e: any) =
       ? e.missType === 'ABSORB'
       : String(row.eventType || '').includes('DAMAGE');
     row.countsAsCrit = !!e.critical;
+  }
+
+  if (includeRawLine) {
+    row.rawLine = e.rawLine ?? '';
   }
 
   return row;

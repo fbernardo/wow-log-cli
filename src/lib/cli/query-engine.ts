@@ -85,7 +85,7 @@ export function commandAbilityEvents(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, !!options.normalized, effectiveDamage));
+    .map((e: any) => toRow(e, !!options.normalized, effectiveDamage, !!options.rawLine));
 
   const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
   const paged = paginate(sorted, options);
@@ -102,7 +102,7 @@ export function commandEventsSearch(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, true, effectiveDamage));
+    .map((e: any) => toRow(e, true, effectiveDamage, !!options.rawLine));
 
   const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
   const paged = paginate(sorted, options);

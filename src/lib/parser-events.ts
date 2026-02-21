@@ -490,6 +490,7 @@ export function parseCombatLogEvents(content: string, callback: EventCallback): 
       anyEvent.ownerName = playerNameByGuid.get(String(anyEvent.ownerGUID)) || '';
     }
 
+    if (!anyEvent.rawLine) anyEvent.rawLine = line;
     callback(event);
   }
 }
