@@ -23,6 +23,36 @@ export interface CliOptions {
   rawLine?: boolean;
 }
 
+function parseRelativeTimeMs(input: string): number | null {
+  const m = input.trim().match(/^(?:(\d+):)?(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$/);
+  if (!m) return null;
+  const hours = Number(m[1] || 0);
+  const minutes = Number(m[2] || 0);
+  const seconds = Number(m[3] || 0);
+  const ms = Number((m[4] || '').padEnd(3, '0') || 0);
+  return (((hours * 60 + minutes) * 60) + seconds) * 1000 + ms;
+}
+
+function parseTimeRange(range: string | undefined, baseMs: number): { start?: number; end?: number } {
+  if (!range) return {};
+  const [leftRaw, rightRaw] = range.split(',', 2);
+  const left = (leftRaw || '').trim();
+  const right = (rightRaw || '').trim();
+
+  const toAbs = (s: string): number | undefined => {
+    if (!s) return undefined;
+    const rel = parseRelativeTimeMs(s);
+    if (rel !== null) return baseMs + rel;
+    const abs = Date.parse(s);
+    if (!Number.isNaN(abs)) return abs;
+    throw new Error(`Invalid --time-range value: ${s}`);
+  };
+
+  const start = toAbs(left);
+  const end = toAbs(right);
+  return { start, end };
+}
+
 function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
   const enc = resolveEncounter(parsed, options.encounter);
   const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
@@ -39,9 +69,14 @@ function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
     if (String(options.player).startsWith('Player-')) playerGuidSet.add(String(options.player));
   }
 
+  const baseMs = enc?.startMs ?? (parsed.events[0] as any)?.timestamp?.getTime?.() ?? 0;
+  const timeRange = parseTimeRange(options.timeRange, baseMs);
+
   return parsed.events.filter((e: any) => {
     const ts = e.timestamp?.getTime?.() ?? 0;
     if (enc && (ts < enc.startMs || ts > enc.endMs)) return false;
+    if (timeRange.start !== undefined && ts < timeRange.start) return false;
+    if (timeRange.end !== undefined && ts > timeRange.end) return false;
     if (eventTypeSet && !eventTypeSet.has(e.type)) return false;
     if (options.player) {
       const matchSource = e.sourceName === options.player || e.sourceGUID === options.player;
