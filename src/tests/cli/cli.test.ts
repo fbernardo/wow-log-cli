@@ -98,4 +98,35 @@ describe('cli commands', () => {
       sort: 'notAField:desc',
     })).toThrow(/Invalid --sort field/);
   });
+
+  it('filters events by relative --time-range', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+
+    const all: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      eventTypes: ['SPELL_DAMAGE'],
+      limit: 5000,
+    });
+
+    const windowed: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      eventTypes: ['SPELL_DAMAGE'],
+      timeRange: '00:10.000,00:20.000',
+      limit: 5000,
+    });
+
+    expect(windowed.count).toBeGreaterThan(0);
+    expect(windowed.count).toBeLessThan(all.count);
+  });
+
+  it('throws on invalid --time-range value', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+
+    expect(() => runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      timeRange: 'invalid,00:20.000',
+    })).toThrow(/Invalid --time-range value/);
+  });
 });
