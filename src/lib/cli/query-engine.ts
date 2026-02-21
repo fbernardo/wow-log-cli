@@ -104,6 +104,38 @@ function effectiveDamage(e: any): number {
   return Math.max(0, amount - overkill);
 }
 
+function sortRows(rows: any[], sort?: string): any[] {
+  if (!sort) {
+    return rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  }
+
+  const [fieldRaw, dirRaw] = sort.split(':');
+  const field = (fieldRaw || '').trim();
+  const dir = ((dirRaw || 'asc').trim().toLowerCase() === 'desc' ? -1 : 1);
+  if (!field) throw new Error('Invalid --sort value. Expected <field[:asc|desc]>');
+
+  const hasField = rows.length === 0 || rows.some((r) => field in (r || {}));
+  if (!hasField) throw new Error(`Invalid --sort field: ${field}`);
+
+  const norm = (v: any) => (v === null || v === undefined ? '' : v);
+  const compare = (a: any, b: any) => {
+    const av = norm(a?.[field]);
+    const bv = norm(b?.[field]);
+
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+
+    const an = Number(av);
+    const bn = Number(bv);
+    if (!Number.isNaN(an) && !Number.isNaN(bn) && String(av).trim() !== '' && String(bv).trim() !== '') {
+      return (an - bn) * dir;
+    }
+
+    return String(av).localeCompare(String(bv)) * dir;
+  };
+
+  return rows.sort((a, b) => compare(a, b) || String(a.timestamp).localeCompare(String(b.timestamp)));
+}
+
 export function commandFightList(parsed: ParsedLog, options: CliOptions) {
   let fights = parsed.encounters.map((e) => e.info);
   if (options.encounter) {
@@ -122,7 +154,7 @@ export function commandAbilityEvents(parsed: ParsedLog, options: CliOptions) {
     })
     .map((e: any) => toRow(e, !!options.normalized, effectiveDamage));
 
-  const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
   return {
     semantics: semantics(!!options.enemyOnly),
@@ -139,7 +171,7 @@ export function commandEventsSearch(parsed: ParsedLog, options: CliOptions) {
     })
     .map((e: any) => toRow(e, true, effectiveDamage));
 
-  const sorted = rows.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+  const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
   return {
     semantics: semantics(!!options.enemyOnly),

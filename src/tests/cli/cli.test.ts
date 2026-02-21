@@ -73,6 +73,32 @@ describe('cli commands', () => {
     expect(res.rows.some((r: any) => r.source === 'Glaciersmasher')).toBe(true);
   });
 
+  it('events search supports --sort desc before pagination', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+    const res: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      eventTypes: ['SPELL_DAMAGE'],
+      sort: 'amount:desc',
+      limit: 5,
+    });
+
+    expect(res.rows.length).toBe(5);
+    for (let i = 1; i < res.rows.length; i++) {
+      expect(Number(res.rows[i - 1].amount)).toBeGreaterThanOrEqual(Number(res.rows[i].amount));
+    }
+  });
+
+  it('throws on invalid --sort field', () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+
+    expect(() => runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      sort: 'notAField:desc',
+    })).toThrow(/Invalid --sort field/);
+  });
+
   it('filters events by relative --time-range', () => {
     const content = readFileSync(LOG_PATH, 'utf-8');
     const parsed = parseLog(content);
