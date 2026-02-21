@@ -27,11 +27,28 @@ function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
   const enc = resolveEncounter(parsed, options.encounter);
   const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
 
+  // If player is given by name, resolve possible player GUID(s) so ownerGUID pet rows can match.
+  const playerGuidSet = new Set<string>();
+  if (options.player) {
+    for (const e of parsed.events as any[]) {
+      if (!e?.sourceGUID || !String(e.sourceGUID).startsWith('Player-')) continue;
+      if (e.sourceName === options.player || e.sourceGUID === options.player) {
+        playerGuidSet.add(e.sourceGUID);
+      }
+    }
+    if (String(options.player).startsWith('Player-')) playerGuidSet.add(String(options.player));
+  }
+
   return parsed.events.filter((e: any) => {
     const ts = e.timestamp?.getTime?.() ?? 0;
     if (enc && (ts < enc.startMs || ts > enc.endMs)) return false;
     if (eventTypeSet && !eventTypeSet.has(e.type)) return false;
-    if (options.player && e.sourceName !== options.player && e.sourceGUID !== options.player) return false;
+    if (options.player) {
+      const matchSource = e.sourceName === options.player || e.sourceGUID === options.player;
+      const matchOwnerByName = e.ownerName === options.player;
+      const matchOwnerByGuid = !!e.ownerGUID && playerGuidSet.has(String(e.ownerGUID));
+      if (!matchSource && !matchOwnerByName && !matchOwnerByGuid) return false;
+    }
     if (options.target && e.destName !== options.target && e.destGUID !== options.target) return false;
     if (options.ability && e.spellName !== options.ability && String(e.spellId ?? '') !== options.ability) return false;
     return true;
