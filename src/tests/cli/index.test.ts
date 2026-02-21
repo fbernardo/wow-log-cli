@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, unlinkSync } from 'fs';
 import { execSync } from 'child_process';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { runCli } from '../../lib/cli/index';
 
-const LOG_PATH = '/Users/openclaw/.openclaw/workspace/wow-log-analyzer/src/tests/fixtures/plexus-slice.log';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const LOG_PATH = resolve(__dirname, '../fixtures/plexus-slice.log');
+const REPO_ROOT = resolve(__dirname, '../../..');
 const OUT_PATH = '/tmp/logparse-cli-out.json';
 
 describe('cli index', () => {
@@ -85,7 +89,7 @@ describe('cli index', () => {
 
   it('supports stdin input with --input -', () => {
     const cmd = `cat "${LOG_PATH}" | npx tsx src/lib/parser-cli.ts fight list --input -`;
-    const out = execSync(cmd, { cwd: '/Users/openclaw/.openclaw/workspace/wow-log-analyzer', encoding: 'utf-8' });
+    const out = execSync(cmd, { cwd: REPO_ROOT, encoding: 'utf-8' });
     const data = JSON.parse(out);
     expect(Array.isArray(data.fights)).toBe(true);
     expect(data.fights[0].bossName).toBe('Plexus Sentinel');
