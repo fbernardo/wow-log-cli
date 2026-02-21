@@ -32,4 +32,20 @@ describe('output helpers', () => {
     expect(lines[1]).toBe('1,x');
     expect(lines[2]).toBe('2,y');
   });
+
+  it('formats table from rows', () => {
+    const txt = formatResult({ rows: [{ a: 1, b: 'x' }, { a: 20, b: 'yy' }] }, 'table', true);
+    expect(txt).toContain('a');
+    expect(txt).toContain('b');
+    expect(txt).toContain('|');
+    expect(txt).not.toContain('{"rows"');
+  });
+
+  it('formats markdown from rows', () => {
+    const txt = formatResult({ rows: [{ a: 1, b: 'x' }] }, 'md', true);
+    const lines = txt.split('\n');
+    expect(lines[0]).toBe('| a | b |');
+    expect(lines[1]).toBe('| --- | --- |');
+    expect(lines[2]).toBe('| 1 | x |');
+  });
 });
