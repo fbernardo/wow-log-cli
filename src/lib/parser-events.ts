@@ -464,25 +464,35 @@ export type EventCallback = (event: CombatEvent) => void;
  */
 export function parseCombatLogEvents(content: string, callback: EventCallback): void {
   const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  
+
   const lineRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})\.(\d{4})\s{2,}(.+)$/;
-  
+  const playerNameByGuid = new Map<string, string>();
+
   for (const line of lines) {
     if (!line.trim()) continue;
-    
+
     const match = line.match(lineRegex);
     if (!match) continue;
-    
+
     const [, month, day, year, hour, minute, second, ms, rest] = match;
     const timestamp = parseTimestamp(`${month}/${day}/${year}`, `${hour}:${minute}:${second}.${ms}`);
-    
+
     const parts = parseCSVLine(rest);
     const eventType = parts[0];
-    
+
     const event = parseEvent(eventType, parts, timestamp, line);
-    if (event) {
-      callback(event);
+    if (!event) continue;
+
+    const anyEvent = event as any;
+    if (typeof anyEvent.sourceGUID === 'string' && anyEvent.sourceGUID.startsWith('Player-') && anyEvent.sourceName) {
+      playerNameByGuid.set(anyEvent.sourceGUID, anyEvent.sourceName);
     }
+
+    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.ownerGUID && !anyEvent.ownerName) {
+      anyEvent.ownerName = playerNameByGuid.get(String(anyEvent.ownerGUID)) || '';
+    }
+
+    callback(event);
   }
 }
 
@@ -976,8 +986,12 @@ function parseEvent(
       };
     
     default:
-      // Skip unknown events but could emit them if needed
-      return null;
+      return {
+        type: 'UNKNOWN',
+        timestamp,
+        rawLine,
+        eventType: eventType || 'UNKNOWN',
+      };
   }
 }
 
