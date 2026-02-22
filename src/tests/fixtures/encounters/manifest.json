@@ -1,0 +1,65 @@
+[
+  {
+    "encounterId": 3131,
+    "bossName": "Loom'ithar",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3131-pull-1-loom-ithar.log.gz"
+  },
+  {
+    "encounterId": 3130,
+    "bossName": "Soulbinder Naazindhri",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3130-pull-1-soulbinder-naazindhri.log.gz"
+  },
+  {
+    "encounterId": 3132,
+    "bossName": "Forgeweaver Araz",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3132-pull-1-forgeweaver-araz.log.gz"
+  },
+  {
+    "encounterId": 3122,
+    "bossName": "The Soul Hunters",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3122-pull-1-the-soul-hunters.log.gz"
+  },
+  {
+    "encounterId": 3133,
+    "bossName": "Fractillus",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3133-pull-1-fractillus.log.gz"
+  },
+  {
+    "encounterId": 3134,
+    "bossName": "Nexus-King Salhadaar",
+    "result": "kill",
+    "pull": 1,
+    "file": "enc-3134-pull-1-nexus-king-salhadaar.log.gz"
+  },
+  {
+    "encounterId": 3135,
+    "bossName": "Dimensius, the All-Devouring",
+    "result": "unknown",
+    "pull": 1,
+    "file": "enc-3135-pull-1-dimensius-the-all-devouring.log.gz"
+  },
+  {
+    "encounterId": 3135,
+    "bossName": "Dimensius, the All-Devouring",
+    "result": "unknown",
+    "pull": 2,
+    "file": "enc-3135-pull-2-dimensius-the-all-devouring.log.gz"
+  },
+  {
+    "encounterId": 3135,
+    "bossName": "Dimensius, the All-Devouring",
+    "result": "kill",
+    "pull": 3,
+    "file": "enc-3135-pull-3-dimensius-the-all-devouring.log.gz"
+  }
+]

@@ -7,7 +7,8 @@
     "cli": "tsx src/lib/parser-cli.ts",
     "test": "vitest run",
     "test:ci": "vitest run --pool=forks --maxWorkers=1 --no-file-parallelism",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fixtures:generate": "tsx scripts/generate-encounter-fixtures.ts"
   },
   "devDependencies": {
     "tsx": "^4.20.5",
