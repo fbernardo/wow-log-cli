@@ -4,9 +4,10 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { gunzipSync } from 'zlib';
 import { parseLog, type ParsedLog, type EncounterWindow } from '../../lib/cli/encounter-index';
+import { EXPECTED_DAMAGE_TOTALS_PER_FIXTURE } from './expected-damage';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES_DIR = resolve(__dirname, '../fixtures');
+const FIXTURES_DIR = resolve(__dirname);
 const ENCOUNTERS_DIR = resolve(FIXTURES_DIR, 'encounters');
 
 function effectiveDamage(e: any): number {
@@ -44,7 +45,6 @@ function sortByName(obj: Record<string, number>): Record<string, number> {
   return Object.fromEntries(Object.entries(obj).sort((a, b) => a[0].localeCompare(b[0])));
 }
 
-// Load manifest to get list of all fixtures
 interface FixtureEntry {
   encounterId: number;
   bossName: string;
@@ -57,45 +57,52 @@ const manifest: FixtureEntry[] = JSON.parse(
   readFileSync(resolve(ENCOUNTERS_DIR, 'manifest.json'), 'utf-8'),
 );
 
-// Also include the main plexus-slice.log
-const ALL_FIXTURES: { name: string; path: string }[] = [
-  { name: 'plexus-slice.log (Plexus Sentinel)', path: resolve(FIXTURES_DIR, 'plexus-slice.log') },
+// Map fixture files to their expected damage keys
+const FIXTURE_KEYS: Record<string, string> = {
+  'plexus-slice.log': 'plexus-slice',
+};
+for (const f of manifest) {
+  FIXTURE_KEYS[f.file] = f.file.replace('.log.gz', '');
+}
+
+// Build list of all fixtures to test
+const ALL_FIXTURES: { name: string; path: string; isGz: boolean; key: string }[] = [
+  { name: 'plexus-slice.log', path: resolve(FIXTURES_DIR, 'plexus-slice.log'), isGz: false, key: 'plexus-slice' },
   ...manifest.map((f) => ({
-    name: `${f.file} (${f.bossName})`,
+    name: f.file,
     path: resolve(ENCOUNTERS_DIR, f.file),
+    isGz: true,
+    key: f.file.replace('.log.gz', ''),
   })),
 ];
 
-describe('fight player damage totals', () => {
+describe('fight player damage totals (golden values)', () => {
   for (const fixture of ALL_FIXTURES) {
-    it(`calculates per-player damage totals for ${fixture.name}`, { timeout: 60000 }, () => {
+    it(`validates damage totals for ${fixture.name}`, { timeout: 60000 }, () => {
       let content: string;
-      if (fixture.path.endsWith('.gz')) {
+      if (fixture.isGz) {
         content = gunzipSync(readFileSync(fixture.path)).toString('utf-8');
       } else {
         content = readFileSync(fixture.path, 'utf-8');
       }
 
       const parsed = parseLog(content);
+      const expected = EXPECTED_DAMAGE_TOTALS_PER_FIXTURE[fixture.key];
 
-      // For each encounter in this fixture, calculate totals and verify we get non-zero values
-      expect(parsed.encounters.length).toBeGreaterThan(0);
+      // If no expected values (empty), just verify non-negative damage
+      if (!expected || Object.keys(expected).length === 0) {
+        for (const encounter of parsed.encounters) {
+          const totals = calculateDamageTotals(parsed, encounter);
+          const totalDamage = Object.values(totals).reduce((a, b) => a + b, 0);
+          expect(totalDamage).toBeGreaterThanOrEqual(0);
+        }
+        return;
+      }
 
+      // Compare each encounter against expected
       for (const encounter of parsed.encounters) {
-        const totals = calculateDamageTotals(parsed, encounter);
-        const totalDamage = Object.values(totals).reduce((a, b) => a + b, 0);
-
-        // Some encounters (e.g., wipes) may have zero player damage - that's valid
-        expect(totalDamage).toBeGreaterThanOrEqual(0);
-        // If there was damage, we should have player names
-        if (totalDamage > 0) {
-          expect(Object.keys(totals).length).toBeGreaterThan(0);
-        }
-
-        // Verify no player deals negative damage
-        for (const [player, damage] of Object.entries(totals)) {
-          expect(damage).toBeGreaterThanOrEqual(0);
-        }
+        const actual = calculateDamageTotals(parsed, encounter);
+        expect(sortByName(actual)).toEqual(sortByName(expected));
       }
     });
   }
