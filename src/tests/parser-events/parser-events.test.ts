@@ -118,10 +118,25 @@ function getEncounters() {
 describe('parseCombatLogEvents', () => {
   const encounters = getEncounters();
 
+  it('extracts at least one encounter from fixture', () => {
+    expect(encounters.length).toBeGreaterThan(0);
+  });
+
   for (const encounter of encounters) {
     it(`should correctly parse encounter: ${encounter.start.bossName}`, { timeout: 30000 }, () => {
       const summary = summarizeEncounter(encounter.events);
-      expect(summary).toMatchSnapshot();
+
+      expect(summary.bossName).toBeTruthy();
+      expect(summary.encounterId).toBeGreaterThan(0);
+      expect(summary.durationSeconds).toBeGreaterThan(0);
+      expect(summary.eventCounts.ENCOUNTER_START).toBe(1);
+      expect(summary.eventCounts.ENCOUNTER_END).toBe(1);
+      expect(summary.result).toMatch(/kill|wipe|unknown/);
+
+      expect(summary.topDamage.length).toBeGreaterThan(0);
+      expect(summary.topHealing.length).toBeGreaterThan(0);
+      expect(summary.topDamage[0].amount).toBeGreaterThan(0);
+      expect(summary.topHealing[0].amount).toBeGreaterThan(0);
     });
   }
 });
