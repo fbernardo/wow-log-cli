@@ -1,5 +1,5 @@
 import type { CombatEvent } from '../parser-events';
-import { parseLog, resolveEncounter, type ParsedLog } from './encounter-index';
+import { parseLog, resolveEncounters, type ParsedLog } from './encounter-index';
 import { toRow, paginate, projectFields, semantics } from './output';
 export { parseLog, resolveEncounter, type ParsedLog } from './encounter-index';
 
@@ -13,6 +13,7 @@ export interface CliOptions {
   sort?: string;
   fields?: string[];
   encounter?: string;
+  fight?: string;
   player?: string;
   target?: string;
   ability?: string;
@@ -54,7 +55,15 @@ function parseTimeRange(range: string | undefined, baseMs: number): { start?: nu
 }
 
 function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
-  const enc = resolveEncounter(parsed, options.encounter);
+  const encounters = resolveEncounters(parsed, options.encounter);
+  const fight = options.fight
+    ? parsed.encounters.find((e) => e.info.fightId === options.fight)
+    : null;
+
+  const encounterWindows = fight
+    ? [fight]
+    : encounters;
+
   const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
 
   // If player is given by name, resolve possible player GUID(s) so ownerGUID pet rows can match.
@@ -69,24 +78,34 @@ function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
     if (String(options.player).startsWith('Player-')) playerGuidSet.add(String(options.player));
   }
 
-  const baseMs = enc?.startMs ?? (parsed.events[0] as any)?.timestamp?.getTime?.() ?? 0;
+  const baseMs = encounterWindows[0]?.startMs ?? (parsed.events[0] as any)?.timestamp?.getTime?.() ?? 0;
   const timeRange = parseTimeRange(options.timeRange, baseMs);
 
-  return parsed.events.filter((e: any) => {
+  return parsed.events.flatMap((e: any) => {
     const ts = e.timestamp?.getTime?.() ?? 0;
-    if (enc && (ts < enc.startMs || ts > enc.endMs)) return false;
-    if (timeRange.start !== undefined && ts < timeRange.start) return false;
-    if (timeRange.end !== undefined && ts > timeRange.end) return false;
-    if (eventTypeSet && !eventTypeSet.has(e.type)) return false;
+
+    let fightId: string | undefined;
+    if (encounterWindows.length > 0) {
+      const match = encounterWindows.find((w) => ts >= w.startMs && ts <= w.endMs);
+      if (!match) return [];
+      fightId = match.info.fightId;
+    }
+
+    if (timeRange.start !== undefined && ts < timeRange.start) return [];
+    if (timeRange.end !== undefined && ts > timeRange.end) return [];
+    if (eventTypeSet && !eventTypeSet.has(e.type)) return [];
+
     if (options.player) {
       const matchSource = e.sourceName === options.player || e.sourceGUID === options.player;
       const matchOwnerByName = e.ownerName === options.player;
       const matchOwnerByGuid = !!e.ownerGUID && playerGuidSet.has(String(e.ownerGUID));
-      if (!matchSource && !matchOwnerByName && !matchOwnerByGuid) return false;
+      if (!matchSource && !matchOwnerByName && !matchOwnerByGuid) return [];
     }
-    if (options.target && e.destName !== options.target && e.destGUID !== options.target) return false;
-    if (options.ability && e.spellName !== options.ability && String(e.spellId ?? '') !== options.ability) return false;
-    return true;
+
+    if (options.target && e.destName !== options.target && e.destGUID !== options.target) return [];
+    if (options.ability && e.spellName !== options.ability && String(e.spellId ?? '') !== options.ability) return [];
+
+    return [{ ...e, fightId } as any];
   });
 }
 
@@ -139,8 +158,10 @@ function sortRows(rows: any[], sort?: string): any[] {
 export function commandFightList(parsed: ParsedLog, options: CliOptions) {
   let fights = parsed.encounters.map((e) => e.info);
   if (options.encounter) {
-    const enc = resolveEncounter(parsed, options.encounter);
-    fights = enc ? [enc.info] : [];
+    fights = resolveEncounters(parsed, options.encounter).map((e) => e.info);
+  }
+  if (options.fight) {
+    fights = fights.filter((f) => f.fightId === options.fight);
   }
   return { semantics: semantics(!!options.enemyOnly), fights };
 }
@@ -215,6 +236,7 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'sort': options.sort = val; break;
       case 'fields': options.fields = val.split(',').map((s) => s.trim()).filter(Boolean); break;
       case 'encounter': options.encounter = val; break;
+      case 'fight': options.fight = val; break;
       case 'player': options.player = val; break;
       case 'target': options.target = val; break;
       case 'ability': options.ability = val; break;

@@ -80,12 +80,16 @@ export function parseLog(content: string): ParsedLog {
   return { events, encounters };
 }
 
-export function resolveEncounter(parsed: ParsedLog, encounter?: string): EncounterWindow | null {
-  if (!encounter) return null;
+export function resolveEncounters(parsed: ParsedLog, encounter?: string): EncounterWindow[] {
+  if (!encounter) return [];
   const asNum = Number(encounter);
   if (!Number.isNaN(asNum)) {
-    return parsed.encounters.find((e) => e.info.encounterId === asNum) || null;
+    return parsed.encounters.filter((e) => e.info.encounterId === asNum);
   }
   const q = encounter.toLowerCase();
-  return parsed.encounters.find((e) => e.info.bossName.toLowerCase().includes(q)) || null;
+  return parsed.encounters.filter((e) => e.info.bossName.toLowerCase().includes(q));
+}
+
+export function resolveEncounter(parsed: ParsedLog, encounter?: string): EncounterWindow | null {
+  return resolveEncounters(parsed, encounter)[0] || null;
 }

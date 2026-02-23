@@ -24,6 +24,10 @@ export function toRow(
     critical: !!e.critical,
   };
 
+  if (e.fightId) {
+    row.fightId = e.fightId;
+  }
+
   if (normalized) {
     const effective = effectiveDamageFn ? effectiveDamageFn(e) : 0;
     row.effectiveDamage = effective;
