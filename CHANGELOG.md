@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-02-23
+
+### Fixed
+- `events search --encounter <id>` now aggregates events across all pulls for that encounter ID (instead of only the first matching pull)
+- Added optional `--fight <fightId>` narrowing for pull-specific queries
+- Added `fightId` to event rows when encounter/fight filtering is applied, enabling per-pull grouping and uptime calculations
+
 ## [0.2.0] - 2026-02-22
 
 ### Added
