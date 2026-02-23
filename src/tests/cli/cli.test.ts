@@ -1,18 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
+import { gunzipSync } from 'zlib';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { parseCliArgs, parseLog, runCommand } from '../../lib/cli/query-engine';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG_PATH = resolve(__dirname, '../fixtures/plexus-slice.log');
+const DIMENSIUS_PULL_1 = resolve(__dirname, '../fixtures/encounters/enc-3135-pull-1-dimensius-the-all-devouring.log.gz');
+const DIMENSIUS_PULL_2 = resolve(__dirname, '../fixtures/encounters/enc-3135-pull-2-dimensius-the-all-devouring.log.gz');
+
+function readGz(path: string): string {
+  return gunzipSync(readFileSync(path)).toString('utf-8');
+}
 
 describe('cli args', () => {
   it('parses command and boolean flags', () => {
-    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--enemy-only', '--normalized', '--limit', '10']);
+    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--fight', 'fight_3135_1', '--enemy-only', '--normalized', '--limit', '10']);
     expect(r.command).toEqual(['ability', 'events']);
     expect(r.options.input).toBe('x.log');
     expect(r.options.player).toBe('Eruani');
+    expect(r.options.fight).toBe('fight_3135_1');
     expect(r.options.enemyOnly).toBe(true);
     expect(r.options.normalized).toBe(true);
     expect(r.options.limit).toBe(10);
@@ -62,6 +70,37 @@ describe('cli commands', () => {
     });
     expect(res.rows.length).toBe(3);
     expect(Object.keys(res.rows[0]).sort()).toEqual(['ability', 'eventType', 'timestamp']);
+  });
+
+  it('events search aggregates all pulls for same encounter id and includes fightId', { timeout: 30000 }, () => {
+    const content = `${readGz(DIMENSIUS_PULL_1)}\n${readGz(DIMENSIUS_PULL_2)}`;
+    const parsed = parseLog(content);
+
+    const res: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3135',
+      limit: 50000,
+    });
+
+    expect(res.count).toBeGreaterThan(0);
+    expect(res.rows[0].fightId).toBeTruthy();
+    const distinctFightIds = new Set(res.rows.map((r: any) => r.fightId));
+    expect(distinctFightIds.size).toBe(2);
+  });
+
+  it('events search supports narrowing to a specific fight with --fight', { timeout: 30000 }, () => {
+    const content = `${readGz(DIMENSIUS_PULL_1)}\n${readGz(DIMENSIUS_PULL_2)}`;
+    const parsed = parseLog(content);
+    const fightId = parsed.encounters.find((e) => e.info.encounterId === 3135)?.info.fightId;
+    expect(fightId).toBeTruthy();
+
+    const res: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3135',
+      fight: fightId,
+      limit: 50000,
+    });
+
+    expect(res.count).toBeGreaterThan(0);
+    expect(res.rows.every((r: any) => r.fightId === fightId)).toBe(true);
   });
 
   it('events search with player includes pet-owned events', { timeout: 30000 }, () => {
