@@ -465,6 +465,8 @@ export function parseCombatLogEvents(content: string, callback: EventCallback): 
 
   const lineRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})\.(\d{3,4})\s{2,}(.+)$/;
   const playerNameByGuid = new Map<string, string>();
+  // pet/guardian GUID -> owner player GUID
+  const ownerGuidByUnitGuid = new Map<string, string>();
 
   for (const line of lines) {
     if (!line.trim()) continue;
@@ -486,7 +488,30 @@ export function parseCombatLogEvents(content: string, callback: EventCallback): 
       playerNameByGuid.set(anyEvent.sourceGUID, anyEvent.sourceName);
     }
 
-    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.ownerGUID && !anyEvent.ownerName) {
+    // Record pet/guardian ownership from explicit summon relationships.
+    // SPELL_SUMMON: sourceGUID=owner, destGUID=summoned unit.
+    if (event.type === 'SPELL_SUMMON' && anyEvent.sourceGUID && anyEvent.destGUID) {
+      if (String(anyEvent.sourceGUID).startsWith('Player-')) {
+        ownerGuidByUnitGuid.set(String(anyEvent.destGUID), String(anyEvent.sourceGUID));
+      }
+    }
+
+    // Some melee events already carry ownerGUID; use them to enrich the map for future non-melee rows.
+    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.sourceGUID && anyEvent.ownerGUID) {
+      if (!String(anyEvent.sourceGUID).startsWith('Player-') && String(anyEvent.ownerGUID).startsWith('Player-')) {
+        ownerGuidByUnitGuid.set(String(anyEvent.sourceGUID), String(anyEvent.ownerGUID));
+      }
+    }
+
+    // Fill missing owner attribution for any pet/guardian sourced event when known.
+    if (!anyEvent.ownerGUID && anyEvent.sourceGUID && !String(anyEvent.sourceGUID).startsWith('Player-')) {
+      const ownerGuid = ownerGuidByUnitGuid.get(String(anyEvent.sourceGUID));
+      if (ownerGuid) {
+        anyEvent.ownerGUID = ownerGuid;
+      }
+    }
+
+    if (anyEvent.ownerGUID && !anyEvent.ownerName) {
       anyEvent.ownerName = playerNameByGuid.get(String(anyEvent.ownerGUID)) || '';
     }
 
