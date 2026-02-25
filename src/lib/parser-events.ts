@@ -95,6 +95,8 @@ export interface SpellCastSuccessEvent extends CombatLogEvent {
  */
 export interface SpellDamageEvent extends CombatLogEvent {
   type: 'SPELL_DAMAGE';
+  ownerGUID?: string;
+  ownerName?: string;
   spellId: number;
   spellName: string;
   spellSchool: number;
@@ -115,6 +117,8 @@ export interface SpellDamageEvent extends CombatLogEvent {
  */
 export interface RangeDamageEvent extends CombatLogEvent {
   type: 'RANGE_DAMAGE';
+  ownerGUID?: string;
+  ownerName?: string;
   spellId: number;
   spellName: string;
   spellSchool: number;
@@ -192,6 +196,8 @@ export interface SpellHealEvent extends CombatLogEvent {
  */
 export interface SpellPeriodicDamageEvent extends CombatLogEvent {
   type: 'SPELL_PERIODIC_DAMAGE';
+  ownerGUID?: string;
+  ownerName?: string;
   spellId: number;
   spellName: string;
   spellSchool: number;
@@ -479,8 +485,19 @@ class AttributionState {
       }
     }
 
-    // SWING rows may include ownerGUID for pets/guardians; infer only for non-player sources.
-    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.sourceGUID && anyEvent.ownerGUID) {
+    // SWING and some damage rows may include ownerGUID for pets/guardians;
+    // infer only for non-player sources.
+    if (
+      (
+        event.type === 'SWING_DAMAGE' ||
+        event.type === 'SWING_DAMAGE_LANDED' ||
+        event.type === 'SPELL_DAMAGE' ||
+        event.type === 'SPELL_PERIODIC_DAMAGE' ||
+        event.type === 'RANGE_DAMAGE'
+      ) &&
+      anyEvent.sourceGUID &&
+      anyEvent.ownerGUID
+    ) {
       if (!String(anyEvent.sourceGUID).startsWith('Player-') && String(anyEvent.ownerGUID).startsWith('Player-')) {
         const existing = this.ownerGuidByUnitGuid.get(String(anyEvent.sourceGUID));
         // Avoid noisy owner flips from weak/inferred signals.
@@ -575,7 +592,12 @@ function parseEvent(
     const idx = parts.length - 1 - offsetFromEnd;
     return idx >= 0 ? getPart(idx) === '1' : false;
   };
-  
+  const parseOwnerGuid = (idx: number): string => {
+    const v = getPart(idx);
+    return /^Player-/.test(v) ? v : '';
+  };
+  const parseOwnerGuidDamage = (): string => parseOwnerGuid(12) || parseOwnerGuid(13);
+
   switch (eventType) {
     case 'COMBAT_LOG_VERSION':
       return {
@@ -674,6 +696,8 @@ function parseEvent(
         spellId: parseIntSafe(9),
         spellName: getPart(10)?.replace(/"/g, '') || '',
         spellSchool: parseIntSafe(11),
+        ownerGUID: parseOwnerGuidDamage(),
+        ownerName: '',
         amount: parseIntSafe(31),
         // In advanced logs, overkill is typically near the tail (idx 33 in our observed format).
         // Fallback to classic position when needed.
@@ -704,6 +728,8 @@ function parseEvent(
         spellId: parseIntSafe(9),
         spellName: getPart(10)?.replace(/"/g, '') || '',
         spellSchool: parseIntSafe(11),
+        ownerGUID: parseOwnerGuidDamage(),
+        ownerName: '',
         amount: parseIntSafe(12),
         overkill: parseIntSafe(13),
         school: parseIntSafe(14),
@@ -801,6 +827,8 @@ function parseEvent(
         spellId: parseIntSafe(9),
         spellName: getPart(10)?.replace(/"/g, '') || '',
         spellSchool: parseIntSafe(11),
+        ownerGUID: parseOwnerGuidDamage(),
+        ownerName: '',
         // Support both classic and advanced-log layouts
         amount: parseIntSafe(31) || parseIntSafe(12),
         overkill: Math.max(0, parseIntSafe(33), parseIntSafe(13)),
