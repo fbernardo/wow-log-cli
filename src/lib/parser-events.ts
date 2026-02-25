@@ -450,6 +450,75 @@ export type CombatEvent =
 
 export type EventCallback = (event: CombatEvent) => void;
 
+interface OwnerLink {
+  ownerGuid: string;
+  lastSeenMs: number;
+}
+
+class AttributionState {
+  private readonly playerNameByGuid = new Map<string, string>();
+  private readonly ownerGuidByUnitGuid = new Map<string, OwnerLink>();
+
+  // Guard against stale ownership links living forever across long logs.
+  private static readonly OWNER_LINK_TTL_MS = 30 * 60 * 1000;
+
+  observe(event: CombatEvent): void {
+    const anyEvent = event as any;
+
+    if (typeof anyEvent.sourceGUID === 'string' && anyEvent.sourceGUID.startsWith('Player-') && anyEvent.sourceName) {
+      this.playerNameByGuid.set(anyEvent.sourceGUID, anyEvent.sourceName);
+    }
+
+    // Explicit owner relationship is strongest signal.
+    if (event.type === 'SPELL_SUMMON' && anyEvent.sourceGUID && anyEvent.destGUID) {
+      if (String(anyEvent.sourceGUID).startsWith('Player-')) {
+        this.ownerGuidByUnitGuid.set(String(anyEvent.destGUID), {
+          ownerGuid: String(anyEvent.sourceGUID),
+          lastSeenMs: event.timestamp.getTime(),
+        });
+      }
+    }
+
+    // SWING rows may include ownerGUID for pets/guardians; infer only for non-player sources.
+    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.sourceGUID && anyEvent.ownerGUID) {
+      if (!String(anyEvent.sourceGUID).startsWith('Player-') && String(anyEvent.ownerGUID).startsWith('Player-')) {
+        const existing = this.ownerGuidByUnitGuid.get(String(anyEvent.sourceGUID));
+        // Avoid noisy owner flips from weak/inferred signals.
+        if (!existing || existing.ownerGuid === String(anyEvent.ownerGUID)) {
+          this.ownerGuidByUnitGuid.set(String(anyEvent.sourceGUID), {
+            ownerGuid: String(anyEvent.ownerGUID),
+            lastSeenMs: event.timestamp.getTime(),
+          });
+        }
+      }
+    }
+
+    // Zone changes are a safe boundary to drop stale entity ownership.
+    if (event.type === 'ZONE_CHANGE') {
+      this.ownerGuidByUnitGuid.clear();
+    }
+  }
+
+  backfill(event: CombatEvent): void {
+    const anyEvent = event as any;
+
+    if (!anyEvent.ownerGUID && anyEvent.sourceGUID && !String(anyEvent.sourceGUID).startsWith('Player-')) {
+      const link = this.ownerGuidByUnitGuid.get(String(anyEvent.sourceGUID));
+      if (link) {
+        const age = event.timestamp.getTime() - link.lastSeenMs;
+        if (age >= 0 && age <= AttributionState.OWNER_LINK_TTL_MS) {
+          anyEvent.ownerGUID = link.ownerGuid;
+          link.lastSeenMs = event.timestamp.getTime();
+        }
+      }
+    }
+
+    if (anyEvent.ownerGUID && !anyEvent.ownerName) {
+      anyEvent.ownerName = this.playerNameByGuid.get(String(anyEvent.ownerGUID)) || '';
+    }
+  }
+}
+
 // ============================================================================
 // PARSER IMPLEMENTATION
 // ============================================================================
@@ -464,9 +533,7 @@ export function parseCombatLogEvents(content: string, callback: EventCallback): 
   const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
   const lineRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2}):(\d{2})\.(\d{3,4})\s{2,}(.+)$/;
-  const playerNameByGuid = new Map<string, string>();
-  // pet/guardian GUID -> owner player GUID
-  const ownerGuidByUnitGuid = new Map<string, string>();
+  const attribution = new AttributionState();
 
   for (const line of lines) {
     if (!line.trim()) continue;
@@ -483,38 +550,10 @@ export function parseCombatLogEvents(content: string, callback: EventCallback): 
     const event = parseEvent(eventType, parts, timestamp, line);
     if (!event) continue;
 
+    attribution.observe(event);
+    attribution.backfill(event);
+
     const anyEvent = event as any;
-    if (typeof anyEvent.sourceGUID === 'string' && anyEvent.sourceGUID.startsWith('Player-') && anyEvent.sourceName) {
-      playerNameByGuid.set(anyEvent.sourceGUID, anyEvent.sourceName);
-    }
-
-    // Record pet/guardian ownership from explicit summon relationships.
-    // SPELL_SUMMON: sourceGUID=owner, destGUID=summoned unit.
-    if (event.type === 'SPELL_SUMMON' && anyEvent.sourceGUID && anyEvent.destGUID) {
-      if (String(anyEvent.sourceGUID).startsWith('Player-')) {
-        ownerGuidByUnitGuid.set(String(anyEvent.destGUID), String(anyEvent.sourceGUID));
-      }
-    }
-
-    // Some melee events already carry ownerGUID; use them to enrich the map for future non-melee rows.
-    if ((event.type === 'SWING_DAMAGE' || event.type === 'SWING_DAMAGE_LANDED') && anyEvent.sourceGUID && anyEvent.ownerGUID) {
-      if (!String(anyEvent.sourceGUID).startsWith('Player-') && String(anyEvent.ownerGUID).startsWith('Player-')) {
-        ownerGuidByUnitGuid.set(String(anyEvent.sourceGUID), String(anyEvent.ownerGUID));
-      }
-    }
-
-    // Fill missing owner attribution for any pet/guardian sourced event when known.
-    if (!anyEvent.ownerGUID && anyEvent.sourceGUID && !String(anyEvent.sourceGUID).startsWith('Player-')) {
-      const ownerGuid = ownerGuidByUnitGuid.get(String(anyEvent.sourceGUID));
-      if (ownerGuid) {
-        anyEvent.ownerGUID = ownerGuid;
-      }
-    }
-
-    if (anyEvent.ownerGUID && !anyEvent.ownerName) {
-      anyEvent.ownerName = playerNameByGuid.get(String(anyEvent.ownerGUID)) || '';
-    }
-
     if (!anyEvent.rawLine) anyEvent.rawLine = line;
     callback(event);
   }

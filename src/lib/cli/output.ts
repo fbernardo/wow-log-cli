@@ -19,7 +19,9 @@ export function toRow(
     sourceGUID: e.sourceGUID || '',
     sourceOwner: e.ownerName || '',
     sourceOwnerGUID: e.ownerGUID || '',
-    sourceAttributed: e.ownerName || e.sourceName,
+    // Stable owner-aware attribution fields for grouping.
+    sourceAttributed: e.ownerName || e.ownerGUID || e.sourceName,
+    sourceAttributedKey: e.ownerGUID || e.sourceGUID || e.sourceName || '',
     target: e.destName,
     ability: e.spellName || (e.type?.startsWith('SWING_') ? 'Melee' : undefined),
     amount: e.amount ?? 0,

@@ -5,10 +5,11 @@ import sys
 from pathlib import Path
 
 if len(sys.argv) < 2:
-    print("Usage: owner-attribution-map.py <combat-log-path>")
+    print("Usage: owner-attribution-map.py <combat-log-path> [limit]")
     sys.exit(1)
 
 log_path = sys.argv[1]
+limit = int(sys.argv[2]) if len(sys.argv) >= 3 else 500000
 repo = Path(__file__).resolve().parents[1]
 
 cmd = [
@@ -16,7 +17,7 @@ cmd = [
     'events', 'search',
     '--input', log_path,
     '--event-types', 'SWING_DAMAGE,SWING_DAMAGE_LANDED,SPELL_DAMAGE,SPELL_PERIODIC_DAMAGE,RANGE_DAMAGE',
-    '--limit', '500000',
+    '--limit', str(limit),
     '--fields', 'source,sourceGUID,sourceOwner,sourceOwnerGUID,sourceAttributed',
     '--format', 'csv',
 ]
@@ -27,6 +28,9 @@ if p.returncode != 0:
     sys.exit(p.returncode)
 
 rows = list(csv.DictReader(p.stdout.splitlines()))
+if len(rows) >= limit:
+    print(f"WARNING: fetched {len(rows)} rows (limit={limit}). Results may be truncated.", file=sys.stderr)
+
 mapping = {}
 for r in rows:
     src = (r.get('source') or '').strip()
