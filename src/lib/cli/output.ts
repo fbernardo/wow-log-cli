@@ -12,16 +12,24 @@ export function toRow(
   effectiveDamageFn?: (e: any) => number,
   includeRawLine = false,
 ) {
+  const normalizeGuid = (guid: unknown): string => {
+    const s = String(guid || '').trim();
+    return s === '0000000000000000' ? '' : s;
+  };
+
+  const sourceGUID = normalizeGuid(e.sourceGUID);
+  const ownerGUID = normalizeGuid(e.ownerGUID);
+
   const row: Record<string, any> = {
     timestamp: e.timestamp?.toISOString?.() ?? '',
     eventType: e.type,
     source: e.sourceName,
-    sourceGUID: e.sourceGUID || '',
+    sourceGUID,
     sourceOwner: e.ownerName || '',
-    sourceOwnerGUID: e.ownerGUID || '',
+    sourceOwnerGUID: ownerGUID,
     // Stable owner-aware attribution fields for grouping.
-    sourceAttributed: e.ownerName || e.ownerGUID || e.sourceName,
-    sourceAttributedKey: e.ownerGUID || e.sourceGUID || e.sourceName || '',
+    sourceAttributed: e.ownerName || ownerGUID || e.sourceName,
+    sourceAttributedKey: ownerGUID || sourceGUID || e.sourceName || '',
     target: e.destName,
     ability: e.spellName || (e.type?.startsWith('SWING_') ? 'Melee' : undefined),
     amount: e.amount ?? 0,
