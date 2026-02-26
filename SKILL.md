@@ -38,6 +38,20 @@ The CLI uses fixed semantics:
 - Absorbed contributes to damage when present in absorbed rows
 - `--enemy-only` excludes self/friendly-target damage
 
+### Hit counting / averages / crits (important)
+
+When validating against WCL-style tables, be explicit about the denominator:
+
+- **Damaging hits**: `SPELL_DAMAGE` + `SPELL_PERIODIC_DAMAGE` (plus `SWING_DAMAGE` / `RANGE_DAMAGE` when relevant)
+- **Attempts (WCL-style hit rows in many views)**: damaging hits **plus** `*_MISSED` and `SPELL_ABSORBED`
+- **Crit % (damage events)**: `critical=true` / damaging hits
+- **Crit % (attempt-based)**: `critical=true` / attempts (only if explicitly requested)
+- **Average per cast**: total `effectiveDamage` / `SPELL_CAST_SUCCESS` count
+- **Average per damaging hit**: total `effectiveDamage` / damaging hits
+
+If the user asks for “hits” without clarification, return both counts:
+1) damaging hits, and 2) attempts including misses/absorbs.
+
 ## Agent workflow
 
 1. `fight list` to find the encounter
