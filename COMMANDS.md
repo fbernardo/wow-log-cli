@@ -26,6 +26,7 @@ Global options:
 - `--sort <field[:asc|desc]>` : Sort key
 - `--fields <csv>` : Restrict output columns/keys
 - `--enemy-only` : Include only damage to non-player targets
+- `--include-absorbed` : When `--event-types` contains damage families, also include `SPELL_ABSORBED` rows
 - `--time-range <start,end>` : Relative (`00:20.000,00:40.000`) or absolute timestamps
 
 Format examples:
@@ -191,6 +192,8 @@ For all outputs involving damage:
 - Overkill contributes **0** to damage totals (event still returned/countable where relevant).
 - Absorbed damage contributes to damage totals when represented by absorbed event rows.
 - Enemy-only views exclude self/friendly-target damage.
+
+`--event-types` remains strict by default; use `--include-absorbed` when you want absorbed rows merged into damage-family queries.
 
 Each output should include effective semantics used:
 
