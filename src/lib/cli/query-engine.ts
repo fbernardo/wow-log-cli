@@ -23,6 +23,7 @@ export interface CliOptions {
   normalized?: boolean;
   rawLine?: boolean;
   includeAbsorbed?: boolean;
+  groupCallOfTheAncestors?: boolean;
 }
 
 function parseRelativeTimeMs(input: string): number | null {
@@ -129,6 +130,20 @@ function isEnemyTarget(e: any): boolean {
   return !!e.destGUID && !String(e.destGUID).startsWith('Player-');
 }
 
+function applyAbilityGrouping(e: any, options: CliOptions): any {
+  if (!options.groupCallOfTheAncestors) return e;
+
+  const source = String(e.sourceName || '');
+  const owner = String(e.ownerName || '');
+  const cotaSources = new Set(['Ancestor', 'Primal Fire Elemental', 'Primal Storm Elemental']);
+
+  if (cotaSources.has(source) && owner) {
+    return { ...e, spellName: 'Call of the Ancestors' };
+  }
+
+  return e;
+}
+
 function effectiveDamage(e: any): number {
   if (e.type === 'SPELL_MISSED' || e.type === 'SPELL_PERIODIC_MISSED') {
     if (e.missType === 'ABSORB') return Math.max(0, e.absorbed || 0);
@@ -192,7 +207,7 @@ export function commandAbilityEvents(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, !!options.normalized, effectiveDamage, !!options.rawLine));
+    .map((e: any) => toRow(applyAbilityGrouping(e, options), !!options.normalized, effectiveDamage, !!options.rawLine));
 
   const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
@@ -209,7 +224,7 @@ export function commandEventsSearch(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, true, effectiveDamage, !!options.rawLine));
+    .map((e: any) => toRow(applyAbilityGrouping(e, options), true, effectiveDamage, !!options.rawLine));
 
   const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
@@ -265,6 +280,7 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'normalized': options.normalized = true; break;
       case 'raw-line': options.rawLine = true; break;
       case 'include-absorbed': options.includeAbsorbed = true; break;
+      case 'group-call-of-the-ancestors': options.groupCallOfTheAncestors = true; break;
       default:
         break;
     }
