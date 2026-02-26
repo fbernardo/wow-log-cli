@@ -44,6 +44,7 @@ When validating against WCL-style tables, be explicit about the denominator:
 
 - **Damaging hits**: `SPELL_DAMAGE` + `SPELL_PERIODIC_DAMAGE` (plus `SWING_DAMAGE` / `RANGE_DAMAGE` when relevant)
 - **Attempts (WCL-style hit rows in many views)**: damaging hits **plus** `*_MISSED` and `SPELL_ABSORBED`
+- Use `--include-absorbed` when querying damage event families if you want absorbed rows included without manually adding `SPELL_ABSORBED` to `--event-types`.
 - **Crit % (damage events)**: `critical=true` / damaging hits
 - **Crit % (attempt-based)**: `critical=true` / attempts (only if explicitly requested)
 - **Average per cast**: total `effectiveDamage` / `SPELL_CAST_SUCCESS` count

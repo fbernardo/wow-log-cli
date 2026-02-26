@@ -22,6 +22,7 @@ export interface CliOptions {
   enemyOnly?: boolean;
   normalized?: boolean;
   rawLine?: boolean;
+  includeAbsorbed?: boolean;
 }
 
 function parseRelativeTimeMs(input: string): number | null {
@@ -65,9 +66,9 @@ function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
     : encounters;
 
   const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
-  // When users ask for damage event families, include SPELL_ABSORBED so
-  // totals can account for absorbed amounts (matches absorbedCountsAsDamage semantics).
-  if (eventTypeSet) {
+  // Optional: include SPELL_ABSORBED alongside selected damage event families.
+  // Keeps strict --event-types semantics by default.
+  if (eventTypeSet && options.includeAbsorbed) {
     const damageFamilies = new Set([
       'SPELL_DAMAGE',
       'SPELL_PERIODIC_DAMAGE',
@@ -263,6 +264,7 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'enemy-only': options.enemyOnly = true; break;
       case 'normalized': options.normalized = true; break;
       case 'raw-line': options.rawLine = true; break;
+      case 'include-absorbed': options.includeAbsorbed = true; break;
       default:
         break;
     }
