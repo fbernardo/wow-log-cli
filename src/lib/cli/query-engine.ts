@@ -23,7 +23,7 @@ export interface CliOptions {
   normalized?: boolean;
   rawLine?: boolean;
   includeAbsorbed?: boolean;
-  groupCallOfTheAncestors?: boolean;
+  abilityGrouping?: 'none' | 'wcl';
 }
 
 function parseRelativeTimeMs(input: string): number | null {
@@ -130,15 +130,24 @@ function isEnemyTarget(e: any): boolean {
   return !!e.destGUID && !String(e.destGUID).startsWith('Player-');
 }
 
+const WCL_ABILITY_GROUP_RULES: Array<{ groupedAbility: string; sources: Set<string> }> = [
+  {
+    groupedAbility: 'Call of the Ancestors',
+    sources: new Set(['Ancestor', 'Primal Fire Elemental', 'Primal Storm Elemental']),
+  },
+];
+
 function applyAbilityGrouping(e: any, options: CliOptions): any {
-  if (!options.groupCallOfTheAncestors) return e;
+  if (options.abilityGrouping !== 'wcl') return e;
 
   const source = String(e.sourceName || '');
   const owner = String(e.ownerName || '');
-  const cotaSources = new Set(['Ancestor', 'Primal Fire Elemental', 'Primal Storm Elemental']);
+  if (!owner) return e;
 
-  if (cotaSources.has(source) && owner) {
-    return { ...e, spellName: 'Call of the Ancestors' };
+  for (const rule of WCL_ABILITY_GROUP_RULES) {
+    if (rule.sources.has(source)) {
+      return { ...e, spellName: rule.groupedAbility };
+    }
   }
 
   return e;
@@ -245,7 +254,7 @@ export function runCommand(parsed: ParsedLog, command: string[], options: CliOpt
 
 export function parseCliArgs(args: string[]): { command: string[]; options: CliOptions } {
   const command: string[] = [];
-  const options: CliOptions = { format: 'json', compact: true, limit: 200, offset: 0 };
+  const options: CliOptions = { format: 'json', compact: true, limit: 200, offset: 0, abilityGrouping: 'none' };
 
   let i = 0;
   while (i < args.length && !args[i].startsWith('-')) {
@@ -280,7 +289,9 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'normalized': options.normalized = true; break;
       case 'raw-line': options.rawLine = true; break;
       case 'include-absorbed': options.includeAbsorbed = true; break;
-      case 'group-call-of-the-ancestors': options.groupCallOfTheAncestors = true; break;
+      case 'ability-grouping':
+        options.abilityGrouping = (val === 'wcl' ? 'wcl' : 'none');
+        break;
       default:
         break;
     }

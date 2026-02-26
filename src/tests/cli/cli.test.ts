@@ -16,7 +16,7 @@ function readGz(path: string): string {
 
 describe('cli args', () => {
   it('parses command and boolean flags', () => {
-    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--fight', 'fight_3135_1', '--enemy-only', '--normalized', '--include-absorbed', '--group-call-of-the-ancestors', '--limit', '10']);
+    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--fight', 'fight_3135_1', '--enemy-only', '--normalized', '--include-absorbed', '--ability-grouping', 'wcl', '--limit', '10']);
     expect(r.command).toEqual(['ability', 'events']);
     expect(r.options.input).toBe('x.log');
     expect(r.options.player).toBe('Eruani');
@@ -24,7 +24,7 @@ describe('cli args', () => {
     expect(r.options.enemyOnly).toBe(true);
     expect(r.options.normalized).toBe(true);
     expect(r.options.includeAbsorbed).toBe(true);
-    expect(r.options.groupCallOfTheAncestors).toBe(true);
+    expect(r.options.abilityGrouping).toBe('wcl');
     expect(r.options.limit).toBe(10);
   });
 });
@@ -196,7 +196,7 @@ describe('cli commands', () => {
     expect(withoutRaw.rows[0].rawLine).toBeUndefined();
   });
 
-  it('groups shaman pet abilities into Call of the Ancestors when enabled', { timeout: 30000 }, () => {
+  it('applies WCL ability grouping rules when enabled', { timeout: 30000 }, () => {
     const content = readFileSync(LOG_PATH, 'utf-8');
     const parsed = parseLog(content);
 
@@ -204,7 +204,7 @@ describe('cli commands', () => {
       encounter: '3129',
       player: 'Brunix-Aggra(Português)-EU',
       enemyOnly: true,
-      groupCallOfTheAncestors: true,
+      abilityGrouping: 'wcl',
       eventTypes: ['SPELL_DAMAGE', 'SPELL_PERIODIC_DAMAGE'],
       limit: 5000,
     });
