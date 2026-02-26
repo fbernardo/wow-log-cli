@@ -16,14 +16,20 @@ function readGz(path: string): string {
 
 describe('cli args', () => {
   it('parses command and boolean flags', () => {
-    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--fight', 'fight_3135_1', '--enemy-only', '--normalized', '--limit', '10']);
+    const r = parseCliArgs(['ability', 'events', '--input', 'x.log', '--player', 'Eruani', '--fight', 'fight_3135_1', '--enemy-only', '--normalized', '--include-absorbed', '--ability-grouping', 'wcl', '--limit', '10']);
     expect(r.command).toEqual(['ability', 'events']);
     expect(r.options.input).toBe('x.log');
     expect(r.options.player).toBe('Eruani');
     expect(r.options.fight).toBe('fight_3135_1');
     expect(r.options.enemyOnly).toBe(true);
     expect(r.options.normalized).toBe(true);
+    expect(r.options.includeAbsorbed).toBe(true);
+    expect(r.options.abilityGrouping).toBe('wcl');
     expect(r.options.limit).toBe(10);
+  });
+
+  it('throws on invalid --ability-grouping value', () => {
+    expect(() => parseCliArgs(['events', 'search', '--ability-grouping', 'wlc'])).toThrow(/Invalid --ability-grouping value/);
   });
 });
 
@@ -192,5 +198,33 @@ describe('cli commands', () => {
 
     expect(withRaw.rows[0].rawLine).toContain('SPELL_DAMAGE');
     expect(withoutRaw.rows[0].rawLine).toBeUndefined();
+  });
+
+  it('applies WCL ability grouping rules when enabled', { timeout: 30000 }, () => {
+    const content = readFileSync(LOG_PATH, 'utf-8');
+    const parsed = parseLog(content);
+
+    const grouped: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      player: 'Brunix-Aggra(Português)-EU',
+      enemyOnly: true,
+      abilityGrouping: 'wcl',
+      eventTypes: ['SPELL_DAMAGE', 'SPELL_PERIODIC_DAMAGE'],
+      limit: 5000,
+    });
+
+    const ungrouped: any = runCommand(parsed, ['events', 'search'], {
+      encounter: '3129',
+      player: 'Brunix-Aggra(Português)-EU',
+      enemyOnly: true,
+      eventTypes: ['SPELL_DAMAGE', 'SPELL_PERIODIC_DAMAGE'],
+      limit: 5000,
+    });
+
+    const groupedHasParent = grouped.rows.some((r: any) => r.ability === 'Call of the Ancestors');
+    const ungroupedHasAncestorChild = ungrouped.rows.some((r: any) => r.source === 'Ancestor' && r.ability !== 'Call of the Ancestors');
+
+    expect(groupedHasParent).toBe(true);
+    expect(ungroupedHasAncestorChild).toBe(true);
   });
 });

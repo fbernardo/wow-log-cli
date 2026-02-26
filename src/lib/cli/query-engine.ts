@@ -23,6 +23,7 @@ export interface CliOptions {
   normalized?: boolean;
   rawLine?: boolean;
   includeAbsorbed?: boolean;
+  abilityGrouping?: 'none' | 'wcl';
 }
 
 function parseRelativeTimeMs(input: string): number | null {
@@ -129,6 +130,29 @@ function isEnemyTarget(e: any): boolean {
   return !!e.destGUID && !String(e.destGUID).startsWith('Player-');
 }
 
+const WCL_ABILITY_GROUP_RULES: Array<{ groupedAbility: string; sources: Set<string> }> = [
+  {
+    groupedAbility: 'Call of the Ancestors',
+    sources: new Set(['Ancestor', 'Primal Fire Elemental', 'Primal Storm Elemental']),
+  },
+];
+
+function applyAbilityGrouping(e: any, options: CliOptions): any {
+  if (options.abilityGrouping !== 'wcl') return e;
+
+  const source = String(e.sourceName || '');
+  const owner = String(e.ownerName || '');
+  if (!owner) return e;
+
+  for (const rule of WCL_ABILITY_GROUP_RULES) {
+    if (rule.sources.has(source)) {
+      return { ...e, spellName: rule.groupedAbility };
+    }
+  }
+
+  return e;
+}
+
 function effectiveDamage(e: any): number {
   if (e.type === 'SPELL_MISSED' || e.type === 'SPELL_PERIODIC_MISSED') {
     if (e.missType === 'ABSORB') return Math.max(0, e.absorbed || 0);
@@ -192,7 +216,7 @@ export function commandAbilityEvents(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, !!options.normalized, effectiveDamage, !!options.rawLine));
+    .map((e: any) => toRow(applyAbilityGrouping(e, options), !!options.normalized, effectiveDamage, !!options.rawLine));
 
   const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
@@ -209,7 +233,7 @@ export function commandEventsSearch(parsed: ParsedLog, options: CliOptions) {
       if (!options.enemyOnly) return true;
       return isEnemyTarget(e);
     })
-    .map((e: any) => toRow(e, true, effectiveDamage, !!options.rawLine));
+    .map((e: any) => toRow(applyAbilityGrouping(e, options), true, effectiveDamage, !!options.rawLine));
 
   const sorted = sortRows(rows, options.sort);
   const paged = paginate(sorted, options);
@@ -230,7 +254,7 @@ export function runCommand(parsed: ParsedLog, command: string[], options: CliOpt
 
 export function parseCliArgs(args: string[]): { command: string[]; options: CliOptions } {
   const command: string[] = [];
-  const options: CliOptions = { format: 'json', compact: true, limit: 200, offset: 0 };
+  const options: CliOptions = { format: 'json', compact: true, limit: 200, offset: 0, abilityGrouping: 'none' };
 
   let i = 0;
   while (i < args.length && !args[i].startsWith('-')) {
@@ -265,6 +289,14 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'normalized': options.normalized = true; break;
       case 'raw-line': options.rawLine = true; break;
       case 'include-absorbed': options.includeAbsorbed = true; break;
+      case 'ability-grouping': {
+        const v = String(val || '').trim();
+        if (v !== 'none' && v !== 'wcl') {
+          throw new Error(`Invalid --ability-grouping value: ${v}. Expected one of: none, wcl`);
+        }
+        options.abilityGrouping = v as 'none' | 'wcl';
+        break;
+      }
       default:
         break;
     }
