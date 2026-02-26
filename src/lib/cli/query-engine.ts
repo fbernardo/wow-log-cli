@@ -65,6 +65,21 @@ function applyFilters(parsed: ParsedLog, options: CliOptions): CombatEvent[] {
     : encounters;
 
   const eventTypeSet = options.eventTypes ? new Set(options.eventTypes) : null;
+  // When users ask for damage event families, include SPELL_ABSORBED so
+  // totals can account for absorbed amounts (matches absorbedCountsAsDamage semantics).
+  if (eventTypeSet) {
+    const damageFamilies = new Set([
+      'SPELL_DAMAGE',
+      'SPELL_PERIODIC_DAMAGE',
+      'SWING_DAMAGE',
+      'SWING_DAMAGE_LANDED',
+      'RANGE_DAMAGE',
+      'DAMAGE_SPLIT',
+      'DAMAGE_SHIELD',
+    ]);
+    const hasDamageFamily = [...eventTypeSet].some((t) => damageFamilies.has(t));
+    if (hasDamageFamily) eventTypeSet.add('SPELL_ABSORBED');
+  }
 
   // If player is given by name, resolve possible player GUID(s) so ownerGUID pet rows can match.
   const playerGuidSet = new Set<string>();
@@ -117,6 +132,9 @@ function effectiveDamage(e: any): number {
   if (e.type === 'SPELL_MISSED' || e.type === 'SPELL_PERIODIC_MISSED') {
     if (e.missType === 'ABSORB') return Math.max(0, e.absorbed || 0);
     return 0;
+  }
+  if (e.type === 'SPELL_ABSORBED') {
+    return Math.max(0, e.absorbed || 0);
   }
   const amount = Math.max(0, e.amount || 0);
   const overkill = Math.max(0, e.overkill || 0);

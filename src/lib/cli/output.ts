@@ -47,7 +47,7 @@ export function toRow(
     row.effectiveDamage = effective;
     row.countsAsHit = row.eventType === 'SPELL_MISSED' || row.eventType === 'SPELL_PERIODIC_MISSED'
       ? e.missType === 'ABSORB'
-      : String(row.eventType || '').includes('DAMAGE');
+      : row.eventType === 'SPELL_ABSORBED' || String(row.eventType || '').includes('DAMAGE');
     row.countsAsCrit = !!e.critical;
   }
 
