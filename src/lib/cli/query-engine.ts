@@ -289,9 +289,14 @@ export function parseCliArgs(args: string[]): { command: string[]; options: CliO
       case 'normalized': options.normalized = true; break;
       case 'raw-line': options.rawLine = true; break;
       case 'include-absorbed': options.includeAbsorbed = true; break;
-      case 'ability-grouping':
-        options.abilityGrouping = (val === 'wcl' ? 'wcl' : 'none');
+      case 'ability-grouping': {
+        const v = String(val || '').trim();
+        if (v !== 'none' && v !== 'wcl') {
+          throw new Error(`Invalid --ability-grouping value: ${v}. Expected one of: none, wcl`);
+        }
+        options.abilityGrouping = v as 'none' | 'wcl';
         break;
+      }
       default:
         break;
     }

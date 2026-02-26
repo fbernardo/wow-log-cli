@@ -27,6 +27,10 @@ describe('cli args', () => {
     expect(r.options.abilityGrouping).toBe('wcl');
     expect(r.options.limit).toBe(10);
   });
+
+  it('throws on invalid --ability-grouping value', () => {
+    expect(() => parseCliArgs(['events', 'search', '--ability-grouping', 'wlc'])).toThrow(/Invalid --ability-grouping value/);
+  });
 });
 
 describe('cli commands', () => {
