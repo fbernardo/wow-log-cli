@@ -27,6 +27,7 @@ Global options:
 - `--fields <csv>` : Restrict output columns/keys
 - `--enemy-only` : Include only damage to non-player targets
 - `--include-absorbed` : When `--event-types` contains damage families, also include `SPELL_ABSORBED` rows
+- `--group-call-of-the-ancestors` : Group `Ancestor` / `Primal Fire Elemental` / `Primal Storm Elemental` damage into ability `Call of the Ancestors`
 - `--time-range <start,end>` : Relative (`00:20.000,00:40.000`) or absolute timestamps
 
 Format examples:
@@ -134,6 +135,12 @@ Recommendation: pass `--encounter` whenever possible. This command is broad by d
 
 ```bash
 logparse events search --input WoWCombatLog.txt --encounter 3129 --player "Eruani-Drak'thul-EU" --event-types SPELL_DAMAGE,SPELL_MISSED --limit 200 --fields timestamp,eventType,spellName,destName,amount,absorbed,critical
+```
+
+WCL-aligned shaman parent grouping example:
+
+```bash
+logparse events search --input WoWCombatLog.txt --encounter "Fractillus" --player "Brunix-Aggra(Português)-EU" --enemy-only --include-absorbed --group-call-of-the-ancestors --event-types SPELL_DAMAGE,SPELL_PERIODIC_DAMAGE
 ```
 
 ---
